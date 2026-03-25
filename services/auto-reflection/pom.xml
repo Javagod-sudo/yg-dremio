@@ -5,10 +5,10 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.dremio.oss</groupId>
-        <artifactId>dremio-oss-parent</artifactId>
-        <version>26.0.5</version>
-        <relativePath>../../pom.xml</relativePath>
+        <groupId>com.dremio.services</groupId>
+        <artifactId>dremio-services-parent</artifactId>
+        <version>${revision}</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>auto-reflection-service</artifactId>
@@ -16,40 +16,46 @@
     <description>Automatic Reflection System for Dremio</description>
 
     <dependencies>
-        <!-- Dremio Core -->
+        <!-- Dremio Services - match accelerator-service dependencies -->
         <dependency>
-            <groupId>com.dremio.oss</groupId>
-            <artifactId>common-core</artifactId>
+            <groupId>com.dremio.services</groupId>
+            <artifactId>dremio-services-accelerator</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>com.dremio.oss</groupId>
-            <artifactId>accelerator-service</artifactId>
+            <groupId>com.dremio.services</groupId>
+            <artifactId>dremio-services-jobs</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>com.dremio.oss</groupId>
-            <artifactId>jobs-service</artifactId>
+            <groupId>com.dremio.services</groupId>
+            <artifactId>dremio-services-namespace</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>com.dremio.oss</groupId>
-            <artifactId>namespace-service</artifactId>
+            <groupId>com.dremio</groupId>
+            <artifactId>dremio-common</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>com.dremio.oss</groupId>
-            <artifactId>datastore-service</artifactId>
+            <groupId>com.dremio</groupId>
+            <artifactId>dremio-protocol</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>com.dremio.oss</groupId>
-            <artifactId>options-service</artifactId>
+            <groupId>com.dremio.services</groupId>
+            <artifactId>dremio-services-datastore</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.dremio.services</groupId>
+            <artifactId>dremio-services-options</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -75,13 +81,6 @@
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
-        </dependency>
-
-        <!-- Rpc -->
-        <dependency>
-            <groupId>com.dremio.oss</groupId>
-            <artifactId>base-rpc</artifactId>
-            <version>${project.version}</version>
         </dependency>
 
         <!-- Test dependencies -->
