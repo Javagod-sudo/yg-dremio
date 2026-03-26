@@ -34,6 +34,12 @@
       <version>${project.version}</version>
     </dependency>
 
+    <!-- Arrow Flight Core -->
+    <dependency>
+      <groupId>org.apache.arrow</groupId>
+      <artifactId>flight-core</artifactId>
+    </dependency>
+
     <!-- Arrow Flight SQL Client -->
     <dependency>
       <groupId>org.apache.arrow</groupId>
@@ -55,14 +61,19 @@
       <version>${arrow.version}</version>
     </dependency>
 
-    <!-- gRPC -->
+    <!-- Dremio Flight Services -->
     <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-arrow-flight</artifactId>
-      <version>${grpc.version}</version>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-arrow-flight</artifactId>
     </dependency>
 
-    <!-- ClickHouse JDBC Driver (optional, for JDBC-based queries) -->
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-arrow-flight-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- ClickHouse JDBC Driver (for JDBC-based metadata) -->
     <dependency>
       <groupId>com.clickhouse</groupId>
       <artifactId>clickhouse-jdbc</artifactId>
