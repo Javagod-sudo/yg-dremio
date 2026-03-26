@@ -16,6 +16,7 @@
 package com.dremio.plugins.clickhouse;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetHandleListing;
 import com.dremio.connector.metadata.DatasetMetadata;
@@ -25,41 +26,43 @@ import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
+import com.dremio.exec.catalog.AuthenticationType;
 import com.dremio.exec.catalog.PluginSabotContext;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
+import com.dremio.plugins.clickhouse.execution.ClickHouseRecordReader;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Preconditions;
-import io.grpc.ManagedChannel;
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import javax.inject.Provider;
-import org.apache.arrow.flight.FlightClient;
-import org.apache.arrow.flight.FlightInfo;
-import org.apache.arrow.flight.FlightSql;
-import org.apache.arrow.flight.Location;
-import org.apache.arrow.flight.TlsCredentials;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.VectorSchemaRoot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * ClickHouse storage plugin using Arrow Flight SQL protocol.
+ * ClickHouse storage plugin using JDBC.
  * 
- * ClickHouse supports Arrow Flight SQL starting from version 22.3.
- * The default port is 18130 for Arrow Flight SQL.
+ * <p>This plugin allows Dremio to query ClickHouse databases using JDBC.
+ * It supports:
+ * <ul>
+ *   <li>Listing databases and tables</li>
+ *   <li>Reading table metadata</li>
+ *   <li>Query pushdown for better performance</li>
+ * </ul>
  */
 public class ClickHouseStoragePlugin implements StoragePlugin, SupportsListingDatasets {
 
@@ -69,10 +72,7 @@ public class ClickHouseStoragePlugin implements StoragePlugin, SupportsListingDa
   private final PluginSabotContext context;
   private final String name;
   private final Provider<StoragePluginId> pluginIdProvider;
-  private final BufferAllocator allocator;
-  private final Set<EntityPath> tableList = new HashSet<>();
-  private volatile FlightClient flightClient;
-  private volatile ManagedChannel channel;
+  private volatile Connection connection;
 
   public ClickHouseStoragePlugin(
       ClickHousePluginConfig config,
@@ -83,8 +83,6 @@ public class ClickHouseStoragePlugin implements StoragePlugin, SupportsListingDa
     this.context = context;
     this.name = name;
     this.pluginIdProvider = pluginIdProvider;
-    this.allocator = context.getAllocator().newChildAllocator(
-        ClickHouseStoragePlugin.class.getName(), 0, Long.MAX_VALUE);
   }
 
   @Override
@@ -95,7 +93,7 @@ public class ClickHouseStoragePlugin implements StoragePlugin, SupportsListingDa
   @Override
   public SourceState getState() {
     try {
-      getFlightClient();
+      getConnection();
       return SourceState.GOOD;
     } catch (Exception e) {
       logger.warn("ClickHouse source {} is not accessible: {}", name, e.getMessage());
@@ -115,67 +113,64 @@ public class ClickHouseStoragePlugin implements StoragePlugin, SupportsListingDa
 
   @Override
   public void start() throws IOException {
-    logger.info("ClickHouse Arrow Flight storage plugin started for source: {}", name);
+    try {
+      // Register ClickHouse JDBC driver
+      DriverManager.registerDriver(new com.clickhouse.jdbc.ClickHouseDriver());
+      logger.info("ClickHouse storage plugin started for source: {}", name);
+    } catch (SQLException e) {
+      throw new IOException("Failed to register ClickHouse JDBC driver", e);
+    }
   }
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(flightClient, allocator);
+    AutoCloseables.close(connection);
   }
 
-  public FlightClient getFlightClient() {
-    if (flightClient == null) {
+  /**
+   * Get a JDBC connection to ClickHouse.
+   */
+  public Connection getConnection() throws SQLException {
+    if (connection == null) {
       synchronized (this) {
-        if (flightClient == null) {
-          createFlightClient();
+        if (connection == null) {
+          connection = createConnection();
         }
       }
     }
-    return flightClient;
+    return connection;
   }
 
-  private void createFlightClient() {
-    String host = config.host;
-    int port = config.port;
+  private Connection createConnection() throws SQLException {
+    ClickHousePluginConfig cfg = config;
     
-    Location location;
-    if (config.useSsl) {
-      location = Location.forGrpcTls(host, port);
+    // Build JDBC URL
+    StringBuilder urlBuilder = new StringBuilder();
+    urlBuilder.append("jdbc:clickhouse:http://");
+    urlBuilder.append(cfg.host);
+    urlBuilder.append(":");
+    urlBuilder.append(cfg.port);
+    urlBuilder.append("/");
+    urlBuilder.append(cfg.database);
+    
+    // Add connection parameters
+    urlBuilder.append("?compress=0"); // Disable compression for simplicity
+    
+    if (cfg.connectionTimeout > 0) {
+      urlBuilder.append("&connect_timeout=").append(cfg.connectionTimeout * 1000);
+    }
+    if (cfg.socketTimeout > 0) {
+      urlBuilder.append("&socket_timeout=").append(cfg.socketTimeout * 1000);
+    }
+    
+    String url = urlBuilder.toString();
+    logger.debug("Connecting to ClickHouse: {}", url.replaceAll("password=[^&]*", "password=***"));
+    
+    if (cfg.authenticationType == AuthenticationType.USERNAME_PASSWORD) {
+      return DriverManager.getConnection(url, cfg.username, cfg.password);
     } else {
-      location = Location.forGrpcInsecure(host, port);
+      return DriverManager.getConnection(url);
     }
-
-    FlightClient.Builder clientBuilder = FlightClient.builder()
-        .allocator(allocator)
-        .location(location);
-
-    if (config.useSsl) {
-      // For TLS, we need to configure certificate validation
-      // In production, you should configure the trusted certificates properly
-      clientBuilder = clientBuilder
-          .credential(TlsCredentials.fromPem(null, null));
-    }
-
-    channel = clientBuilder.build();
-    flightClient = channel;
-    
-    logger.debug("Created Flight client to {}:{}", host, port);
-  }
-
-  public BufferAllocator getAllocator() {
-    return allocator;
-  }
-
-  public PluginSabotContext getContext() {
-    return context;
-  }
-
-  public String getName() {
-    return name;
-  }
-
-  public ClickHousePluginConfig getConfig() {
-    return config;
   }
 
   @Override
@@ -183,30 +178,45 @@ public class ClickHouseStoragePlugin implements StoragePlugin, SupportsListingDa
     Set<DatasetHandle> handles = new HashSet<>();
     
     try {
-      FlightClient client = getFlightClient();
-      FlightSql.SqlClient sqlClient = new FlightSql.SqlClient(client);
-
-      // Get list of tables from the default database
-      String query = "SHOW TABLES FROM " + config.database;
-      FlightInfo flightInfo = sqlClient.executeQuery(query);
+      Connection conn = getConnection();
+      DatabaseMetaData metaData = conn.getMetaData();
       
-      VectorSchemaRoot root = flightInfo.getSchemaRoot();
-      if (root != null) {
-        List<FieldVector> vectors = root.getFieldVectors();
-        if (!vectors.isEmpty()) {
-          FieldVector nameVector = vectors.get(0);
-          for (int i = 0; i < nameVector.getValueCount(); i++) {
-            Object value = nameVector.getObject(i);
-            if (value != null) {
-              String tableName = value.toString();
-              EntityPath tablePath = getTablePath(tableName);
-              handles.add(new ClickHouseDatasetHandle(tablePath, config.database, tableName));
-              tableList.add(tablePath);
-            }
+      // Get list of databases/catalogs
+      try (ResultSet rs = metaData.getCatalogs()) {
+        while (rs.next()) {
+          String databaseName = rs.getString("TABLE_CAT");
+          if (databaseName != null && !databaseName.isEmpty()) {
+            EntityPath databasePath = EntityPath.fromString(databaseName);
+            handles.add(new ClickHouseDatasetHandle(
+                databasePath, 
+                databaseName, 
+                null,
+                this));
           }
         }
       }
-    } catch (Exception e) {
+      
+      // Get list of tables for each database
+      try (ResultSet rs = metaData.getTables(null, null, "%", new String[]{"TABLE", "VIEW"})) {
+        while (rs.next()) {
+          String tableName = rs.getString("TABLE_NAME");
+          String databaseName = rs.getString("TABLE_CAT");
+          
+          // Skip tables without a valid database
+          if (tableName == null || databaseName == null) {
+            continue;
+          }
+          
+          EntityPath tablePath = EntityPath.fromString(databaseName + "." + tableName);
+          handles.add(new ClickHouseDatasetHandle(
+              tablePath,
+              databaseName,
+              tableName,
+              this));
+        }
+      }
+      
+    } catch (SQLException e) {
       logger.error("Failed to list datasets from ClickHouse", e);
     }
 
@@ -217,15 +227,17 @@ public class ClickHouseStoragePlugin implements StoragePlugin, SupportsListingDa
   public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) {
     Preconditions.checkArgument(!datasetPath.isEmpty(), "Dataset path cannot be empty");
 
-    if (datasetPath.size() == 1) {
+    List<String> components = datasetPath.getComponents();
+    
+    if (components.size() == 1) {
       // Database reference
-      String database = datasetPath.getComponents().get(0);
-      return Optional.of(new ClickHouseDatasetHandle(datasetPath, database, null));
-    } else if (datasetPath.size() == 2) {
+      String database = components.get(0);
+      return Optional.of(new ClickHouseDatasetHandle(datasetPath, database, null, this));
+    } else if (components.size() == 2) {
       // Table reference
-      String database = datasetPath.getComponents().get(0);
-      String table = datasetPath.getComponents().get(1);
-      return Optional.of(new ClickHouseDatasetHandle(datasetPath, database, table));
+      String database = components.get(0);
+      String table = components.get(1);
+      return Optional.of(new ClickHouseDatasetHandle(datasetPath, database, table, this));
     }
 
     return Optional.empty();
@@ -247,26 +259,43 @@ public class ClickHouseStoragePlugin implements StoragePlugin, SupportsListingDa
 
   @Override
   public boolean containerExists(EntityPath containerPath, GetMetadataOption... options) {
+    try {
+      Connection conn = getConnection();
+      DatabaseMetaData metaData = conn.getMetaData();
+      
+      if (containerPath.size() == 1) {
+        // Check if database exists
+        String database = containerPath.getComponents().get(0);
+        try (ResultSet rs = metaData.getCatalogs()) {
+          while (rs.next()) {
+            if (database.equals(rs.getString("TABLE_CAT"))) {
+              return true;
+            }
+          }
+        }
+      } else if (containerPath.size() == 2) {
+        // Check if table exists
+        String database = containerPath.getComponents().get(0);
+        String table = containerPath.getComponents().get(1);
+        try (ResultSet rs = metaData.getTables(database, null, table, new String[]{"TABLE", "VIEW"})) {
+          return rs.next();
+        }
+      }
+    } catch (SQLException e) {
+      logger.warn("Failed to check container existence", e);
+    }
     return false;
   }
 
-  public FlightSql.SqlClient getSqlClient() {
-    return new FlightSql.SqlClient(getFlightClient());
+  public PluginSabotContext getContext() {
+    return context;
   }
 
-  private EntityPath getTablePath(String tableName) {
-    List<String> components = new ArrayList<>();
-    components.add(name); // source name
-    if (tableName.contains(".")) {
-      components.addAll(Arrays.asList(tableName.split("\\.")));
-    } else {
-      components.add(tableName);
-    }
-    return new EntityPath(components);
+  public String getName() {
+    return name;
   }
 
-  public static EntityPath canonicalize(EntityPath entityPath) {
-    return new EntityPath(
-        entityPath.getComponents().stream().map(String::toLowerCase).collect(Collectors.toList()));
+  public ClickHousePluginConfig getConfig() {
+    return config;
   }
 }

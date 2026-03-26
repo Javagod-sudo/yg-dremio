@@ -37,7 +37,7 @@ public class ClickHousePluginConfig extends ConnectionConf<ClickHousePluginConfi
 
   @NotNull
   @Tag(2)
-  public int port = 18130;  // ClickHouse Arrow Flight SQL port
+  public int port = 18124;  // ClickHouse native port (mapped from 9000)
 
   @Tag(3)
   @Username

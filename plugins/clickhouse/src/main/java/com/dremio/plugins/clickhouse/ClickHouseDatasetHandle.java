@@ -31,11 +31,13 @@ public class ClickHouseDatasetHandle implements DatasetHandle, DatasetMetadata, 
   private final EntityPath path;
   private final String database;
   private final String table;
+  private final ClickHouseStoragePlugin plugin;
 
-  public ClickHouseDatasetHandle(EntityPath path, String database, String table) {
+  public ClickHouseDatasetHandle(EntityPath path, String database, String table, ClickHouseStoragePlugin plugin) {
     this.path = path;
     this.database = database;
     this.table = table;
+    this.plugin = plugin;
   }
 
   @Override
@@ -78,6 +80,10 @@ public class ClickHouseDatasetHandle implements DatasetHandle, DatasetMetadata, 
 
   public boolean isTable() {
     return table != null;
+  }
+
+  public ClickHouseStoragePlugin getPlugin() {
+    return plugin;
   }
 
   @Override
