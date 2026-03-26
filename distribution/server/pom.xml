@@ -104,6 +104,11 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
+      <groupId>com.dremio.plugins</groupId>
+      <artifactId>dremio-clickhouse-plugin</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-protocol</artifactId>
       <version>${project.version}</version>

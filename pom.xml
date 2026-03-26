@@ -2815,7 +2815,47 @@ ${errorprone.module.args}
       <id>dremio-public</id>
       <url>https://maven.dremio.com/public/</url>
     </repository>
+    <repository>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>dremio-free</id>
+      <url>https://maven.dremio.com/free/</url>
+    </repository>
+    <!-- 覆盖 conjars.org 仓库，因为 conjars.org 已关闭 -->
+    <repository>
+      <id>conjars</id>
+      <url>https://repo.maven.apache.org/maven2</url>
+    </repository>
   </repositories>
+
+  <pluginRepositories>
+    <pluginRepository>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>dremio-plugins</id>
+      <url>https://maven.dremio.com/plugins/</url>
+    </pluginRepository>
+    <pluginRepository>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>dremio-public</id>
+      <url>https://maven.dremio.com/public/</url>
+    </pluginRepository>
+    <pluginRepository>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>dremio-free</id>
+      <url>https://maven.dremio.com/free/</url>
+    </pluginRepository>
+    <pluginRepository>
+      <id>central</id>
+      <url>https://repo.maven.apache.org/maven2</url>
+    </pluginRepository>
+  </pluginRepositories>
 
   <build>
 
@@ -3175,12 +3215,8 @@ ${errorprone.module.args}
           <version>0.6.1</version>
           <configuration>
             <clearOutputDirectory>false</clearOutputDirectory>
-            <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
-            <!--
-            this avoids copying the protoc artifacts multiple times:
-            https://github.com/xolstice/protobuf-maven-plugin/blob/protobuf-maven-plugin-0.6.1/src/main/java/org/xolstice/maven/plugin/protobuf/AbstractProtocMojo.java#L1094-L1098
-            -->
-            <protocPluginDirectory>${java.io.tmpdir}/dremio_protoc</protocPluginDirectory>
+            <protocExecutable>C:/Windows/System32/protoc.exe</protocExecutable>
+            <protocPluginExecutable>C:/Windows/System32/protoc-gen-grpc-java.exe</protocPluginExecutable>
           </configuration>
         </plugin>
         <plugin>

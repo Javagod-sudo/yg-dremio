@@ -1,0 +1,59 @@
+{
+  "type": "object",
+  "title": "ClickHouse",
+  "description": "Connect to ClickHouse database using Arrow Flight SQL",
+  "properties": {
+    "host": {
+      "type": "string",
+      "title": "Host",
+      "description": "ClickHouse server host",
+      "default": "localhost"
+    },
+    "port": {
+      "type": "number",
+      "title": "Port",
+      "description": "ClickHouse Arrow Flight SQL port",
+      "default": 18130,
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "database": {
+      "type": "string",
+      "title": "Database",
+      "description": "ClickHouse database name",
+      "default": "default"
+    },
+    "username": {
+      "type": "string",
+      "title": "Username",
+      "description": "Database username",
+      "default": "default"
+    },
+    "password": {
+      "type": "string",
+      "title": "Password",
+      "description": "Database password",
+      "format": "password"
+    },
+    "authenticationType": {
+      "type": "string",
+      "title": "Authentication",
+      "enum": ["NONE", "USERNAME_PASSWORD"],
+      "default": "NONE"
+    },
+    "useSsl": {
+      "type": "boolean",
+      "title": "Use SSL",
+      "description": "Enable SSL/TLS connection",
+      "default": false
+    },
+    "timeout": {
+      "type": "number",
+      "title": "Timeout (seconds)",
+      "description": "Connection timeout in seconds",
+      "default": 60,
+      "minimum": 1
+    }
+  },
+  "required": ["host", "port", "database"]
+}

@@ -51,5 +51,6 @@
     <module>pdfs</module>
     <module>s3</module>
     <module>sysflight</module>
+    <module>clickhouse</module>
   </modules>
 </project>
