@@ -17,21 +17,14 @@ package com.dremio.plugins.clickhouse;
 
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelOptTable;
 
 /**
  * Rules factory for ClickHouse plugin.
- * 
- * <p>This class registers rules for optimizing queries against ClickHouse data sources.
  */
 public class ClickHouseRulesFactory extends StoragePluginRulesFactory {
 
   @Override
   public void register(RelOptPlanner planner) {
-    // Register rules for ClickHouse-specific optimizations
-    // For example:
-    // - Filter pushdown rules
-    // - Project pushdown rules
-    // - Limit pushdown rules
+    // No specific rules needed - using standard Dremio scan operators
   }
 }
