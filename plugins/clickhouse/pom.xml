@@ -34,51 +34,11 @@
       <version>${project.version}</version>
     </dependency>
 
-    <!-- Arrow Flight Core -->
-    <dependency>
-      <groupId>org.apache.arrow</groupId>
-      <artifactId>flight-core</artifactId>
-    </dependency>
-
-    <!-- Arrow Flight SQL Client -->
-    <dependency>
-      <groupId>org.apache.arrow</groupId>
-      <artifactId>arrow-flight-sql</artifactId>
-      <version>${arrow.version}</version>
-    </dependency>
-
-    <!-- Arrow Memory -->
-    <dependency>
-      <groupId>org.apache.arrow</groupId>
-      <artifactId>arrow-memory-core</artifactId>
-      <version>${arrow.version}</version>
-    </dependency>
-
-    <!-- Arrow Vector -->
-    <dependency>
-      <groupId>org.apache.arrow</groupId>
-      <artifactId>arrow-vector</artifactId>
-      <version>${arrow.version}</version>
-    </dependency>
-
-    <!-- Dremio Flight Services -->
-    <dependency>
-      <groupId>com.dremio.services</groupId>
-      <artifactId>dremio-services-arrow-flight</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.dremio.services</groupId>
-      <artifactId>dremio-services-arrow-flight-common</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <!-- ClickHouse JDBC Driver (for JDBC-based metadata) -->
+    <!-- ClickHouse JDBC Driver -->
     <dependency>
       <groupId>com.clickhouse</groupId>
       <artifactId>clickhouse-jdbc</artifactId>
-      <version>0.8.3</version>
-      <classifier>http</classifier>
+      <version>0.6.3</version>
     </dependency>
 
     <!-- SLF4J -->
